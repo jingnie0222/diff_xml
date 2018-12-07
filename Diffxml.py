@@ -1,20 +1,19 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #-*-coding=utf8-*-
 import os,sys
-import time,thread
+import time,_thread
 from lxml import etree
 import hashlib
-from StringIO import StringIO
+from io import StringIO
 import re
-from urllib import unquote
 
 def log_error(str):
     time_str = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
-    sys.stderr.write('[%s] [%d] [error] %s\n' % (time_str, thread.get_ident(), str))
+    sys.stderr.write('[%s] [%d] [error] %s\n' % (time_str, _thread.get_ident(), str))
     sys.stderr.flush()
 def log_info(str):
     time_str = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
-    sys.stdout.write('[%s] [%d] [info] %s\n' % (time_str, thread.get_ident(), str))
+    sys.stdout.write('[%s] [%d] [info] %s\n' % (time_str, _thread.get_ident(), str))
     sys.stdout.flush()
 
 def checkAttribute(baseNode,testNode,root,xpathStr=''):
@@ -26,13 +25,17 @@ def checkAttribute(baseNode,testNode,root,xpathStr=''):
         return
     base_nodes = baseNode.xpath(xpathStr)
     test_nodes = testNode.xpath(xpathStr)
+    #base_str = etree.tostring(baseNode, encoding='utf8').decode('utf8')
+    #test_str = etree.tostring(testNode, encoding='utf8').decode('utf8')
+
     for key in baseNode.keys():
         if len(test_nodes) ==0 :
             log_error('[checkAttribute] the test xml has no Attribute %s/@%s ' % (xpathStr,key) )
         else:
             if len(base_nodes) != len(test_nodes):
-                log_error('[checkAttribute] nodes number of base xml and text xml are not equal, xpath:%s ' % xpathStr )
-                log_error('[checkAttribute] base node:%s' % etree.tostring(baseNode))
+                #log_error('[checkAttribute] nodes number of base xml and text xml are not equal, xpath:%s \n base node:%s \n test node:%s ' % (xpathStr,base_str,test_str) )
+                log_error('[checkAttribute] nodes number of base xml and text xml are not equal, xpath:%s ' % xpathStr)
+                break
             else:
                 #log_error('####### checkAttribute ########')
                 for b_node, t_node in zip(base_nodes,test_nodes):
@@ -80,8 +83,8 @@ def checkText(baseNode,testNode,xpathStr=''):
                     log_error('[checkText] test node text is null, xpath:%s' % xpathStr )
                     return
 
-                hash_base = hashlib.md5(baseText).hexdigest()
-                hash_test = hashlib.md5(testText).hexdigest()
+                hash_base = hashlib.md5(baseText.encode('utf8')).hexdigest()
+                hash_test = hashlib.md5(testText.encode('utf8')).hexdigest()
                 if hash_test != hash_base:
                     log_error('[checkText] diff Text, xpath:%s\n|______base text: *%s*\n|______test text: *%s\n' % (xpathStr,baseText, testText) )
 
@@ -106,21 +109,21 @@ def checkXml(baseRoot,testRoot,root,xpathStr=''):
 
 def procOne(xmlTest,xmlBase,key):
 
-    xmlTest=uniformCharset(xmlTest)
-    xmlBase=uniformCharset(xmlBase)
-    print '################################################',xmlBase
+    #xmlTest=uniformCharset(xmlTest)
+    #xmlBase=uniformCharset(xmlBase)
+    #print '################################################',xmlBase
     testRoot=None
     baseRoot=None
     xmlp = etree.XMLParser(encoding="utf-8")
 
     try:
-        testRoot=etree.fromstring(xmlTest, parser=xmlp)
-    except Exception,err:
+        testRoot=etree.fromstring(xmlTest.encode('utf8'), parser=xmlp)
+    except Exception as err:
         log_error('procOne etree test %s err : %s' % (key, err) )
         return False
     try:
-        baseRoot=etree.fromstring(xmlBase, parser=xmlp)
-    except Exception,err:
+        baseRoot=etree.fromstring(xmlBase.encode('utf8'), parser=xmlp)
+    except Exception as err:
         log_error('procOne etree base %s err : %s' % (key, err) )
         return False
 
@@ -133,22 +136,22 @@ def procOne(xmlTest,xmlBase,key):
 
     return True
 
-def strQ2B(ustring):
-    rstring = ""
-    for uchar in ustring:
-        inside_code=ord(uchar)
-        if inside_code == 12288:
-            inside_code = 32
-        elif (inside_code >= 65281 and inside_code <= 65374):
-            inside_code -= 65248
-        rstring += unichr(inside_code)
-    return rstring
+#def strQ2B(ustring):
+    #rstring = ""
+    #for uchar in ustring:
+        #inside_code=ord(uchar)
+        #if inside_code == 12288:
+            #inside_code = 32
+        #elif (inside_code >= 65281 and inside_code <= 65374):
+            #inside_code -= 65248
+        #rstring += unichr(inside_code)
+    #return rstring
 
-def uniformCharset(inputStr):
-    output=strQ2B(inputStr)
+#def uniformCharset(inputStr):
+    #output=strQ2B(inputStr)
     #output=output.replace('encoding="UTF-16"','encoding="UTF-8"')
-    output=output.decode('gb2312','ignore').encode('utf8')
-    return output
+    #output=output.decode('gb2312','ignore').encode('utf8')
+    #return output
 
 def getLine(line):
     line_lst = line.split('\t',1)
@@ -159,8 +162,8 @@ def getLine(line):
 
 
 if __name__=='__main__':
-    reload(sys)
-    sys.setdefaultencoding('utf8')
+    #reload(sys)
+    #sys.setdefaultencoding('utf8')
  
     if len(sys.argv)==3:
         basexml_file=sys.argv[1]
@@ -177,7 +180,7 @@ if __name__=='__main__':
     with open(testxml_file,'r') as fd:
         for line in fd:
             key,xml_test=getLine(line)
-            if not basexml_dict.has_key(key):
+            if key not in basexml_dict.keys():
                 log_error('the base xml file %s has no xml %s' % (basexml_file,key))
                 continue
             xml_base=basexml_dict.get(key)
